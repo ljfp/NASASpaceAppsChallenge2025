@@ -6,29 +6,100 @@
 		<title>NASA Sky Viewer</title>
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Cpath fill='%23facc15' d='M16 4l3.4 7 7.6.7-5.8 5.2 1.8 7.6-7-4.2-7 4.2 1.8-7.6-5.8-5.2 7.6-.7z'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="/static/styles.css" />
+		<link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.min.css" />
 	</head>
 	<body>
-		<div id='aladin-lite-div' style='width: 500px; height: 500px;'></div>
-		<script src='https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js' charset='utf-8'></script>
-		<script>
-			var aladin;
-			var nasa_hips;
-			A.init.then(() => {
-				aladin = A.aladin(
-					'#aladin-lite-div',
-					{
-						survey: 'P/allWISE/color', // set initial image survey
-						projection: 'AIT', // set a projection
-						fov: 1.5, // initial field of view in degrees
-						target: 'NGC 2175', // initial target
-						cooFrame: 'galactic', // set galactic frame reticleColor: '#ff89ff', // change reticle color
-						reticleSize: 64, // change reticle size
-						showCooGrid: true, // set the grid
-						fullScreen: true
-					});
-				//nasa_hips = aladin.newImageSurvey("https://skyview.gsfc.nasa.gov/hips/skyview.hips");
-				//aladin.setImageLayer(nasa_hips);
+		<div id="aladin-lite-div"></div>
+		<div id="aladin-overlay" class="overlay" role="status" aria-live="polite">
+			Loading the NASA sky map…
+		</div>
+		<div class="hud" aria-live="polite">
+			<div class="status" id="status-message">
+				Target: NGC 2175 · Survey: WISE (Infrared)
+			</div>
+			<div class="controls">
+				<button type="button" id="reset-view">Reset view</button>
+				<select id="survey-select" aria-label="Select survey layer">
+					<option value="P/allWISE/color" selected>WISE (Infrared)</option>
+					<option value="P/DSS2/color">DSS2 (Optical)</option>
+					<option value="P/2MASS/color">2MASS (Near Infrared)</option>
+					<option value="P/GALEXGR6/AIS/color">GALEX (Ultraviolet)</option>
+				</select>
+			</div>
+			<div class="notice hidden" id="aladin-error" role="alert"></div>
+		</div>
+		<script type="module">
+			import { A } from 'https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.min.js';
+
+			const overlay = document.getElementById('aladin-overlay');
+			const statusMessage = document.getElementById('status-message');
+			const errorBox = document.getElementById('aladin-error');
+			const surveySelect = document.getElementById('survey-select');
+			const resetButton = document.getElementById('reset-view');
+
+			const defaultConfig = {
+				survey: 'P/allWISE/color',
+				projection: 'AIT',
+				fov: 1.5,
+				target: 'NGC 2175',
+				cooFrame: 'galactic',
+				showCooGrid: true,
+				fullScreen: true
+			};
+
+			let aladinInstance = null;
+
+			function updateStatus(target, surveyLabel) {
+				statusMessage.textContent = `Target: ${target} · Survey: ${surveyLabel}`;
+			}
+
+			function handleError(error) {
+				console.error('Failed to initialise Aladin Lite', error);
+				overlay.classList.remove('hidden');
+				overlay.textContent = 'Unable to load the NASA sky map right now.';
+				errorBox.classList.remove('hidden');
+				errorBox.textContent = error instanceof Error ? error.message : String(error);
+			}
+
+			try {
+				await A.init;
+				aladinInstance = await A.aladin('#aladin-lite-div', defaultConfig);
+				overlay.classList.add('hidden');
+				errorBox.classList.add('hidden');
+				updateStatus(defaultConfig.target, 'WISE (Infrared)');
+
+				resetButton.addEventListener('click', () => {
+					if (!aladinInstance) {
+						return;
+					}
+					try {
+						aladinInstance.gotoObject(defaultConfig.target);
+						aladinInstance.setFov(defaultConfig.fov);
+						aladinInstance.setImageSurvey(defaultConfig.survey);
+						surveySelect.value = defaultConfig.survey;
+						updateStatus(defaultConfig.target, 'WISE (Infrared)');
+					} catch (error) {
+						handleError(error);
+					}
 				});
+
+				surveySelect.addEventListener('change', (event) => {
+					if (!aladinInstance) {
+						return;
+					}
+					try {
+						const select = event.target;
+						const surveyId = select.value;
+						const label = select.options[select.selectedIndex].text;
+						aladinInstance.setImageSurvey(surveyId);
+						updateStatus(defaultConfig.target, label);
+					} catch (error) {
+						handleError(error);
+					}
+				});
+			} catch (error) {
+				handleError(error);
+			}
 		</script>
 	</body>
 </html>
