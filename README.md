@@ -40,6 +40,35 @@ NASASpaceAppsChallenge2025/
 │   └── server.py         # FastAPI application serving the HTML page
 └── web/
     └── index.html        # Static HTML served at the root route
+└── deploy/
+   └── deploy.sh         # Helper script to install and run the service via systemd
 ```
 
 Feel free to build on this foundation for richer APIs or interfaces.
+
+## Deployment script
+
+The `deploy/deploy.sh` script provisions the application on a Linux host using `systemd`. It:
+
+- Syncs the repository into `/opt/nasa-sky-app/app` (configurable with `APP_ROOT`).
+- Creates a virtual environment and installs dependencies.
+- Generates a `systemd` unit that runs Uvicorn on port `80` by default.
+- Enables and restarts the service.
+
+Run it directly on the target server after cloning or syncing the repository:
+
+```bash
+chmod +x deploy/deploy.sh
+APP_ROOT=/opt/nasa-sky-app SERVICE_NAME=nasa-sky-app ./deploy/deploy.sh
+```
+
+Override `SERVICE_USER`, `SERVICE_GROUP`, `PORT`, or `PYTHON_BIN` to fit your environment. When the
+port is below `1024` (the default `80`), the generated unit grants
+`CAP_NET_BIND_SERVICE` so the application can bind to the port without running as root.
+
+### GitHub Actions deployment
+
+A workflow at `.github/workflows/deploy.yml` uses the repository secrets `EC2_HOST`, `EC2_USER`,
+and `EC2_SSH_KEY` to sync the codebase to an Ubuntu 24.04 EC2 instance and execute the deployment
+script remotely. It runs on every push to `main` (and can be triggered manually). Optional
+repository variable `DEPLOY_PORT` lets you override the port without editing the workflow.
