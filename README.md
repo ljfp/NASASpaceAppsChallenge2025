@@ -51,7 +51,8 @@ Feel free to build on this foundation for richer APIs or interfaces.
 The `deploy/deploy.sh` script provisions the application on a Linux host using `systemd`. It:
 
 - Syncs the repository into `/opt/nasa-sky-app/app` (configurable with `APP_ROOT`).
-- Creates a virtual environment and installs dependencies.
+- Ensures `/opt/nasa-sky-app` exists with the proper ownership, then syncs code and creates a
+   virtual environment for dependencies.
 - Generates a `systemd` unit that runs Uvicorn on port `80` by default.
 - Enables and restarts the service.
 

@@ -56,7 +56,12 @@ if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "${APP_DIR}"
+if [ ! -d "${APP_ROOT}" ]; then
+  ${SUDO_BIN} mkdir -p "${APP_ROOT}"
+fi
+${SUDO_BIN} mkdir -p "${APP_DIR}" "${VENV_DIR}"
+${SUDO_BIN} chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${APP_ROOT}"
+
 rsync -a --delete \
   --exclude ".git" \
   --exclude ".venv" \
