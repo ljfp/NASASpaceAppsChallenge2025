@@ -135,6 +135,7 @@ def fetch_survey_image(
     if not images:
         raise RuntimeError(f"SkyView returned no images for {pos} in {survey}")
 
+    logger.info(images[0][0])
     hdu = cast(fits.PrimaryHDU, images[0][0])
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -174,7 +175,7 @@ def fetch_survey_image(
 
     ax.grid(color="white", ls=":", alpha=0.3)
     fig.tight_layout()
-    fig.savefig(png_path, dpi=200, facecolor="black")
+    fig.savefig(png_path, dpi=200, facecolor="green")
     plt.close(fig)
 
     elapsed = perf_counter() - start
