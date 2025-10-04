@@ -10,9 +10,6 @@
 	</head>
 	<body>
 		<div id="aladin-lite-div" aria-label="Interactive FITS viewer"></div>
-		<div id="aladin-overlay" class="overlay" role="status" aria-live="polite">
-			<span id="overlay-message">Loading the NASA sky map…</span>
-		</div>
 		<aside class="hud" aria-live="polite">
 			<p class="title">NASA FITS Explorer</p>
 			<p class="status" id="status-message">Select a FITS source to start exploring.</p>
@@ -63,8 +60,6 @@
 		<script type="module">
 			import { A } from 'https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.min.js';
 
-			const overlay = document.getElementById('aladin-overlay');
-			const overlayMessage = document.getElementById('overlay-message');
 			const statusMessage = document.getElementById('status-message');
 			const errorBox = document.getElementById('aladin-error');
 			const fileInput = document.getElementById('fits-file');
@@ -82,16 +77,6 @@
 						colormap: sampleButtons[0].dataset.colormap
 				  }
 				: null;
-
-			function setOverlay(message) {
-				overlayMessage.textContent = message;
-				overlay.classList.remove('hidden');
-			}
-
-			function clearOverlay() {
-				overlay.classList.add('hidden');
-				overlayMessage.textContent = 'Loading the NASA sky map…';
-			}
 
 			function showError(message) {
 				errorBox.textContent = message;
@@ -160,31 +145,41 @@
 				const label = options.label || deriveLabel(source);
 
 				clearError();
-				setOverlay(`Loading ${label}…`);
+				const loadTimeout = window.setTimeout(() => {
+					if (requestId !== currentRequestId) {
+						return;
+					}
+					console.warn(`FITS load timed out: ${label}`);
+					showError('The FITS file is taking longer than expected to respond. Please try again or use a different source.');
+				}, options.timeout ?? 20000);
+
+				const clearLoadState = () => {
+					window.clearTimeout(loadTimeout);
+				};
 
 				const handleSuccess = (ra, dec, fov, image) => {
 					if (requestId !== currentRequestId) {
 						return;
 					}
+					clearLoadState();
 					configureImage(image, options.colormap);
 					focusOnImage(ra, dec, fov);
 					updateStatus(label, fov);
-					clearOverlay();
 				};
 
 				const handleError = (error) => {
 					if (requestId !== currentRequestId) {
 						return;
 					}
+					clearLoadState();
 					console.error('Failed to load FITS data', error);
-					clearOverlay();
 					showError('Unable to load the FITS data. Please verify the file or URL and try again.');
 				};
 
 				try {
 					const result = aladinInstance.displayFITS(source, options.params || {}, handleSuccess, handleError);
 					if (result && typeof result.then === 'function') {
-						result.catch(handleError);
+						result.catch(handleError).finally(clearLoadState);
 					}
 				} catch (error) {
 					handleError(error);
@@ -240,13 +235,11 @@
 					if (DEFAULT_SAMPLE) {
 						loadFits(DEFAULT_SAMPLE.url, DEFAULT_SAMPLE);
 					} else {
-						clearOverlay();
 						updateStatus(null);
 					}
 				} catch (error) {
 					console.error('Aladin Lite failed to initialise', error);
 					showError('The Aladin Lite viewer could not be initialised. Please refresh the page.');
-					clearOverlay();
 				}
 			}
 

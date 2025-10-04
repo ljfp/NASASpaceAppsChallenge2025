@@ -171,21 +171,6 @@ button:disabled {
   color: rgba(226, 232, 240, 0.72);
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  color: #f8fafc;
-  font-size: 1rem;
-  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.86) 0%, rgba(3, 7, 18, 0.78) 65%, rgba(2, 6, 23, 0.6) 100%);
-  backdrop-filter: blur(6px);
-  padding: 1rem;
-  z-index: 20;
-}
-
 @media (max-width: 720px) {
   .hud {
     position: static;
