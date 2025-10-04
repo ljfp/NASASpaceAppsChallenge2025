@@ -1,5 +1,2 @@
-astroquery==0.4.7
-astropy==6.0.1
 fastapi==0.112.1
-matplotlib==3.8.4
 uvicorn[standard]==0.30.1

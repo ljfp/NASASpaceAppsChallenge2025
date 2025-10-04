@@ -1,49 +1,20 @@
-"""FastAPI service that proxies NASA SkyView tiles and serves the prototype UI."""
-from __future__ import annotations
+"""Minimal FastAPI application that serves a static HTML homepage for the NASA Sky Explorer Prototype."""
 
-import asyncio
-import logging
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
-
-from .skyview_downloader import fetch_survey_image
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
-OUTPUT_DIR = BASE_DIR / "outputs"
-FAVICON_PATH = WEB_DIR / "favicon.ico"
+INDEX_PATH = WEB_DIR / "index.html"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-app = FastAPI(title="NASA SkyView Prototype", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-if WEB_DIR.exists():
-    app.mount("/app", StaticFiles(directory=WEB_DIR, html=True), name="app")
+app = FastAPI(title="NASA Sky Explorer Prototype")
 
 
-@app.get("/favicon.ico", include_in_schema=False)
-async def favicon() -> Response:
-    if FAVICON_PATH.exists():
-        return FileResponse(FAVICON_PATH)
-    return Response(status_code=204)
+@app.get("/", response_class=HTMLResponse)
+def read_index() -> str:
+    """Return the contents of the bundled ``index.html`` file."""
 
 
 @app.get("/aladin")
@@ -116,11 +87,6 @@ async def get_tile(
 
 if __name__ == "__main__":
     import uvicorn
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-    )
 
     uvicorn.run(
         "src.server:app",
