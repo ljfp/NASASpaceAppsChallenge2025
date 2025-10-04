@@ -23,6 +23,7 @@
 					<input id="fits-url" type="url" placeholder="https://data.nasa.gov/sample.fits" aria-label="FITS file URL" />
 					<button type="button" id="load-url">Load URL</button>
 				</div>
+				<button type="button" id="add-marker" class="marker-control">Add marker</button>
 			</div>
 			<div class="samples">
 				<span class="samples-label">Try a sample dataset:</span>
@@ -58,6 +59,28 @@
 			</p>
 			<p class="notice hidden" id="aladin-error" role="alert"></p>
 		</aside>
+		<div id="marker-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="marker-modal-title">
+			<form class="modal__content">
+				<h2 id="marker-modal-title">Add marker</h2>
+				<p class="modal__hint">Customize the marker details before saving it to the sky map.</p>
+				<label for="marker-title">
+					<span>Title</span>
+					<input id="marker-title" name="marker-title" type="text" autocomplete="off" />
+				</label>
+				<label for="marker-description">
+					<span>Description</span>
+					<textarea id="marker-description" name="marker-description" rows="3"></textarea>
+				</label>
+				<label for="marker-color" class="modal__color-picker">
+					<span>Marker color</span>
+					<input id="marker-color" name="marker-color" type="color" value="#60A5FA" />
+				</label>
+				<div class="modal__actions">
+					<button type="button" class="modal__button modal__button--secondary" data-action="cancel">Cancel</button>
+					<button type="submit" class="modal__button modal__button--primary">Save marker</button>
+				</div>
+			</form>
+		</div>
 		<script>
 			const { A } = window;
 			if (!A) {
@@ -69,10 +92,23 @@
 			const fileInput = document.getElementById('fits-file');
 			const urlInput = document.getElementById('fits-url');
 			const loadUrlButton = document.getElementById('load-url');
+			const addMarkerButton = document.getElementById('add-marker');
 			const sampleButtons = Array.from(document.querySelectorAll('[data-fits-url]'));
+			const markerModal = document.getElementById('marker-modal');
+			const markerForm = markerModal ? markerModal.querySelector('form') : null;
+			const markerTitleInput = markerModal ? markerModal.querySelector('#marker-title') : null;
+			const markerDescriptionInput = markerModal ? markerModal.querySelector('#marker-description') : null;
+			const markerColorInput = markerModal ? markerModal.querySelector('#marker-color') : null;
+			const markerCancelButton = markerModal ? markerModal.querySelector('[data-action="cancel"]') : null;
 
 			let aladinInstance = null;
 			let currentRequestId = 0;
+			const markerLayersByColor = new Map();
+			let isAddingMarker = false;
+			let storedStatusText = statusMessage.textContent;
+			let resolveMarkerDialog = null;
+			const MARKER_DEFAULT_COLOR = '#60A5FA';
+			let lastSelectedMarkerColor = MARKER_DEFAULT_COLOR;
 
 			const DEFAULT_SAMPLE = sampleButtons.length
 				? {
@@ -102,6 +138,7 @@
 					parts.push(`FoV ≈ ${span.toFixed(2)}°`);
 				}
 				statusMessage.textContent = parts.join(' · ') || 'Ready to load a FITS image.';
+				storedStatusText = statusMessage.textContent;
 			}
 
 			function focusOnImage(ra, dec, fov) {
@@ -138,6 +175,88 @@
 					return `Local file: ${source.name}`;
 				}
 				return 'Custom FITS';
+			}
+
+			function normaliseHexColor(input) {
+				if (typeof input !== 'string') {
+					return null;
+				}
+				const match = input.trim().match(/^#([0-9a-f]{6})$/i);
+				return match ? `#${match[1].toUpperCase()}` : null;
+			}
+
+			function ensureMarkerLayer(color) {
+				if (!aladinInstance) {
+					return null;
+				}
+				const normalizedColor = normaliseHexColor(color) || MARKER_DEFAULT_COLOR;
+				const existing = markerLayersByColor.get(normalizedColor);
+				if (existing) {
+					return existing;
+				}
+				const catalog = A.catalog({
+					name: `Markers ${normalizedColor}`,
+					shape: 'marker',
+					color: normalizedColor
+				});
+				markerLayersByColor.set(normalizedColor, catalog);
+				aladinInstance.addCatalog(catalog);
+				return catalog;
+			}
+
+			function isMarkerDialogOpen() {
+				return Boolean(markerModal && !markerModal.classList.contains('hidden'));
+			}
+
+			function closeMarkerDialog(result) {
+				if (!markerModal || !markerForm) {
+					if (typeof resolveMarkerDialog === 'function') {
+						resolveMarkerDialog(result);
+						resolveMarkerDialog = null;
+					}
+					return;
+				}
+				markerModal.classList.add('hidden');
+				markerModal.setAttribute('aria-hidden', 'true');
+				markerForm.reset();
+				if (markerColorInput) {
+					markerColorInput.value = lastSelectedMarkerColor || MARKER_DEFAULT_COLOR;
+				}
+				if (typeof resolveMarkerDialog === 'function') {
+					resolveMarkerDialog(result);
+					resolveMarkerDialog = null;
+				}
+			}
+
+			function openMarkerDialog(defaultTitle, defaultDescription, defaultColor) {
+				const resolvedDefaultColor = normaliseHexColor(defaultColor) || MARKER_DEFAULT_COLOR;
+				if (!markerModal || !markerForm || !markerTitleInput || !markerDescriptionInput || !markerColorInput) {
+					if (typeof resolveMarkerDialog === 'function') {
+						resolveMarkerDialog(null);
+						resolveMarkerDialog = null;
+					}
+					return Promise.resolve({
+						title: defaultTitle,
+						description: defaultDescription,
+						color: resolvedDefaultColor
+					});
+				}
+				if (typeof resolveMarkerDialog === 'function') {
+					resolveMarkerDialog(null);
+					resolveMarkerDialog = null;
+				}
+				markerTitleInput.value = defaultTitle;
+				markerDescriptionInput.value = defaultDescription;
+				markerColorInput.value = resolvedDefaultColor;
+				markerModal.classList.remove('hidden');
+				markerModal.setAttribute('aria-hidden', 'false');
+				return new Promise((resolve) => {
+					resolveMarkerDialog = resolve;
+					window.requestAnimationFrame(() => {
+						markerTitleInput.focus();
+						markerTitleInput.select();
+					});
+				});
 			}
 
 			function loadFits(source, options = {}) {
@@ -241,6 +360,98 @@
 				});
 			}
 
+			if (markerForm && markerTitleInput && markerDescriptionInput && markerColorInput) {
+				markerForm.addEventListener('submit', (event) => {
+					event.preventDefault();
+					const chosenColor = normaliseHexColor(markerColorInput.value) || MARKER_DEFAULT_COLOR;
+					closeMarkerDialog({
+						title: markerTitleInput.value,
+						description: markerDescriptionInput.value,
+						color: chosenColor
+					});
+				});
+			}
+
+			if (markerCancelButton) {
+				markerCancelButton.addEventListener('click', () => {
+					closeMarkerDialog(null);
+				});
+			}
+
+			if (markerModal) {
+				markerModal.addEventListener('click', (event) => {
+					if (event.target === markerModal) {
+						closeMarkerDialog(null);
+					}
+				});
+			}
+
+			window.addEventListener('keydown', (event) => {
+				if (event.key === 'Escape' && isMarkerDialogOpen()) {
+					event.preventDefault();
+					closeMarkerDialog(null);
+				}
+			});
+
+			function toggleMarkerMode(active) {
+				if (!aladinInstance) {
+					showError('The viewer is not ready yet. Please wait a moment and try again.');
+					return;
+				}
+				isAddingMarker = active;
+				addMarkerButton.classList.toggle('marker-control--active', isAddingMarker);
+				if (isAddingMarker) {
+					storedStatusText = statusMessage.textContent;
+					statusMessage.textContent = 'Click anywhere on the map to place a marker. Press Esc to cancel.';
+				} else {
+					statusMessage.textContent = storedStatusText;
+				}
+				if (!isAddingMarker) {
+					window.removeEventListener('keydown', cancelMarkerModeOnEscape);
+				} else {
+					window.addEventListener('keydown', cancelMarkerModeOnEscape);
+				}
+			}
+
+			function cancelMarkerModeOnEscape(event) {
+				if (event.key === 'Escape') {
+					if (isMarkerDialogOpen()) {
+						return;
+					}
+					toggleMarkerMode(false);
+				}
+			}
+
+			async function createMarkerAt(ra, dec) {
+				const defaultTitle = `Marker @ RA ${ra.toFixed(3)}, Dec ${dec.toFixed(3)}`;
+				const defaultDescription = `Coordinates: RA ${ra.toFixed(3)}, Dec ${dec.toFixed(3)}`;
+				const dialogResult = await openMarkerDialog(defaultTitle, defaultDescription, lastSelectedMarkerColor);
+				if (!dialogResult) {
+					return false;
+				}
+				const trimmedTitle = (dialogResult.title || '').trim();
+				const trimmedDescription = (dialogResult.description || '').trim();
+				const validColor = normaliseHexColor(dialogResult.color) || MARKER_DEFAULT_COLOR;
+				lastSelectedMarkerColor = validColor;
+				const targetLayer = ensureMarkerLayer(validColor);
+				if (!targetLayer) {
+					showError('Unable to access the marker layer. Please try again in a moment.');
+					return false;
+				}
+				const markerOptions = {
+					popupTitle: trimmedTitle || defaultTitle,
+					popupDesc: trimmedDescription || defaultDescription,
+					color: validColor
+				};
+				const marker = A.marker(ra, dec, markerOptions);
+				targetLayer.addSources([marker]);
+				aladinInstance.gotoRaDec(ra, dec);
+				const confirmation = `${markerOptions.popupTitle} saved at RA ${ra.toFixed(3)}, Dec ${dec.toFixed(3)}`;
+				statusMessage.textContent = confirmation;
+				storedStatusText = confirmation;
+				return true;
+			}
+
 			async function initialiseViewer() {
 				if (!A) {
 					showError('Aladin Lite could not be loaded. Please check your connection and refresh the page.');
@@ -257,10 +468,17 @@
 							target: 'M 31'
 						});
 
-						var marker1 = A.marker(0, 0, {popupTitle: "Test", popupDesc: "TEST"});
-						var markerLayer = A.catalog();
-						aladinInstance.addCatalog(markerLayer);
-						markerLayer.addSources([marker1]);
+						ensureMarkerLayer(MARKER_DEFAULT_COLOR);
+						aladinInstance.on('click', async (point) => {
+							if (!isAddingMarker || !point) {
+								return;
+							}
+							const { ra, dec } = point;
+							if (Number.isFinite(ra) && Number.isFinite(dec)) {
+								await createMarkerAt(ra, dec);
+							}
+							toggleMarkerMode(false);
+						});
 					});
 
 					initialiseSampleButtons();
@@ -286,6 +504,9 @@
 					event.preventDefault();
 					handleUrlLoad();
 				}
+			});
+			addMarkerButton.addEventListener('click', () => {
+				toggleMarkerMode(!isAddingMarker);
 			});
 
 			initialiseViewer();
