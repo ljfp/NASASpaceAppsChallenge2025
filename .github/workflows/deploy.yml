@@ -47,9 +47,9 @@ jobs:
 
       - name: Execute remote deployment
         run: |
-          ssh "$EC2_USER@$EC2_HOST" '
+          ssh "$EC2_USER@$EC2_HOST" "
             set -euo pipefail
             cd ~/nasa-sky-app
             chmod +x deploy/deploy.sh
-            APP_ROOT=/opt/nasa-sky-app SERVICE_NAME=nasa-sky-app PORT=$PORT ./deploy/deploy.sh
-          '
+            APP_ROOT=/opt/nasa-sky-app SERVICE_NAME=nasa-sky-app PORT=${PORT:-80} ./deploy/deploy.sh
+          "
