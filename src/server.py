@@ -10,7 +10,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
 INDEX_PATH = WEB_DIR / "index.html"
 ALADIN_PATH = WEB_DIR / "aladin.html"
-FAVICON_SVG = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>\n<rect width='32' height='32' rx='8' fill='#0f172a'/>\n<path fill='#facc15' d='M16 4l3.4 7 7.6.7-5.8 5.2 1.8 7.6-7-4.2-7 4.2 1.8-7.6-5.8-5.2 7.6-.7z'/>\n</svg>"""
+FAVICON_SVG = (
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>\n"
+    "<rect width='32' height='32' rx='8' fill='#0f172a'/>\n"
+    "<path fill='#facc15' d='M16 4l3.4 7 7.6.7-5.8 5.2 1.8 7.6-7-4.2-7 4.2 "
+    "1.8-7.6-5.8-5.2 7.6-.7z'/>\n"
+    "</svg>"
+)
 
 app = FastAPI(title="NASA Sky Explorer Prototype")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
@@ -42,6 +48,7 @@ def favicon() -> Response:
     """Return a small SVG favicon to satisfy browser requests."""
 
     return Response(content=FAVICON_SVG, media_type="image/svg+xml")
+
 
 if __name__ == "__main__":
     import uvicorn

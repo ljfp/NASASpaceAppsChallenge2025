@@ -1,6 +1,6 @@
-# NASA Sky Explorer Prototype
+# NASA FITS Explorer
 
-A barebones FastAPI project that serves the landing page for the NASA Sky Explorer Prototype
+A FastAPI-powered prototype that serves an interactive Aladin Lite interface for visualising NASA (and allied) FITS imagery. Users can upload local FITS files, paste remote URLs, or launch curated samples spanning multiple missions.
 
 ## Quickstart
 
@@ -18,7 +18,15 @@ A barebones FastAPI project that serves the landing page for the NASA Sky Explor
    uvicorn src.server:app --reload
    ```
 
-3. Open <http://127.0.0.1:8000/> in your browser to view the page titled **“Minimal FastAPI App.”**
+3. Open <http://127.0.0.1:8000/> in your browser and click **“Launch the viewer.”** The FITS explorer lives at <http://127.0.0.1:8000/aladin>.
+
+### Working with FITS datasets
+
+- **Local files:** Use the “Open local FITS file” control. Files never leave the browser; they stream directly into Aladin Lite.
+- **Remote URLs:** Paste a direct link to a FITS file (for example, from NASA’s FITS sample archive or a mission mirror). The viewer requests the data client-side, so the remote server must allow cross-origin (`CORS`) downloads.
+- **Curated samples:** Try the Hubble, GALEX, or WISE presets to demonstrate different wavelengths and resolutions. Each sample automatically recentres and applies a mission-appropriate colour map.
+
+The HUD panel displays the currently loaded source and field of view. Loading very large FITS mosaics may take several seconds depending on bandwidth.
 
 ## Linting
 
@@ -48,7 +56,7 @@ NASASpaceAppsChallenge2025/
         └── deploy.yml    # Continuous deployment pipeline for EC2
 ```
 
-Feel free to build on this foundation for richer APIs or interfaces.
+Feel free to extend the UI with annotations, multi-layer comparisons, or temporal sliders to address the broader Space Apps challenge goals.
 
 ## Continuous deployment to EC2
 
