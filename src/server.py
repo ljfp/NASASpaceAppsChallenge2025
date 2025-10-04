@@ -46,6 +46,11 @@ async def favicon() -> Response:
     return Response(status_code=204)
 
 
+@app.get("/aladin")
+async def aladin() -> Response:
+    return FileResponse("web/aladin.html")
+
+
 @app.get("/")
 async def root() -> JSONResponse:
     return JSONResponse({"status": "ok", "message": "Visit /app for the prototype UI."})

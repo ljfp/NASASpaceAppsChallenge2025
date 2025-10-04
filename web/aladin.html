@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-US">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>NASA Sky Viewer</title>
+		<link rel="stylesheet" href="./web/styles.css" />
+	</head>
+	<body>
+		<div id='aladin-lite-div' style='width: 500px; height: 500px;'></div>
+		<script src='https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js' charset='utf-8'></script>
+		<script>
+			var aladin;
+			A.init.then(() => {
+				aladin = A.aladin(
+					'#aladin-lite-div',
+					{
+						survey: 'P/allWISE/color', // set initial image survey
+						projection: 'AIT', // set a projection
+						fov: 1.5, // initial field of view in degrees
+						target: 'NGC 2175', // initial target
+						cooFrame: 'galactic', // set galactic frame reticleColor: '#ff89ff', // change reticle color
+						reticleSize: 64, // change reticle size
+						showCooGrid: true, // set the grid
+						fullScreen: true
+					});
+				});
+		</script>
+	</body>
+</html>

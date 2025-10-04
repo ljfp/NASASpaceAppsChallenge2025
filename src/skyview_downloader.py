@@ -164,7 +164,7 @@ def fetch_survey_image(
 
     fig = plt.figure(figsize=(6, 6))
     ax = plt.subplot(projection=wcs)
-    im = ax.imshow(data, norm=norm, cmap="gray")
+    im = ax.imshow(data, norm=norm, cmap="rainbow_r")
     ax.set_xlabel("Right Ascension (J2000)")
     ax.set_ylabel("Declination (J2000)")
     ax.set_title(f"{survey} — {pos}")
