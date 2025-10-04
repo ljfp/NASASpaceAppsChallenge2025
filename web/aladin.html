@@ -7,6 +7,7 @@
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f172a'/%3E%3Cpath fill='%23facc15' d='M16 4l3.4 7 7.6.7-5.8 5.2 1.8 7.6-7-4.2-7 4.2 1.8-7.6-5.8-5.2 7.6-.7z'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="/static/styles.css" />
 		<link rel="stylesheet" href="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.min.css" />
+		<script src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js"></script>
 	</head>
 	<body>
 		<div id="aladin-lite-div" aria-label="Interactive FITS viewer"></div>
@@ -57,8 +58,11 @@
 			</p>
 			<p class="notice hidden" id="aladin-error" role="alert"></p>
 		</aside>
-		<script type="module">
-			import { A } from 'https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.min.js';
+		<script>
+			const { A } = window;
+			if (!A) {
+				console.error('Aladin Lite library failed to load.');
+			}
 
 			const statusMessage = document.getElementById('status-message');
 			const errorBox = document.getElementById('aladin-error');
@@ -145,6 +149,7 @@
 				const label = options.label || deriveLabel(source);
 
 				clearError();
+				statusMessage.textContent = `Loading ${label}…`;
 				const loadTimeout = window.setTimeout(() => {
 					if (requestId !== currentRequestId) {
 						return;
@@ -153,15 +158,28 @@
 					showError('The FITS file is taking longer than expected to respond. Please try again or use a different source.');
 				}, options.timeout ?? 20000);
 
-				const clearLoadState = () => {
+				let finished = false;
+
+				const finish = () => {
+					if (finished) {
+						return;
+					}
+					finished = true;
 					window.clearTimeout(loadTimeout);
+					if (typeof options.onCleanup === 'function') {
+						try {
+							options.onCleanup();
+						} catch (cleanupError) {
+							console.warn('Cleanup callback failed', cleanupError);
+						}
+					}
 				};
 
 				const handleSuccess = (ra, dec, fov, image) => {
 					if (requestId !== currentRequestId) {
 						return;
 					}
-					clearLoadState();
+					finish();
 					configureImage(image, options.colormap);
 					focusOnImage(ra, dec, fov);
 					updateStatus(label, fov);
@@ -171,7 +189,7 @@
 					if (requestId !== currentRequestId) {
 						return;
 					}
-					clearLoadState();
+					finish();
 					console.error('Failed to load FITS data', error);
 					showError('Unable to load the FITS data. Please verify the file or URL and try again.');
 				};
@@ -179,7 +197,7 @@
 				try {
 					const result = aladinInstance.displayFITS(source, options.params || {}, handleSuccess, handleError);
 					if (result && typeof result.then === 'function') {
-						result.catch(handleError).finally(clearLoadState);
+						result.catch(handleError).finally(finish);
 					}
 				} catch (error) {
 					handleError(error);
@@ -191,7 +209,11 @@
 				if (!file) {
 					return;
 				}
-				loadFits(file, { label: `Local file: ${file.name}` });
+				const objectUrl = URL.createObjectURL(file);
+				loadFits(objectUrl, {
+					label: `Local file: ${file.name}`,
+					onCleanup: () => URL.revokeObjectURL(objectUrl)
+				});
 				event.target.value = '';
 			}
 
@@ -220,6 +242,10 @@
 			}
 
 			async function initialiseViewer() {
+				if (!A) {
+					showError('Aladin Lite could not be loaded. Please check your connection and refresh the page.');
+					return;
+				}
 				try {
 					await A.init;
 					aladinInstance = await A.aladin('#aladin-lite-div', {
