@@ -72,7 +72,7 @@ Every push to `main` now syncs the repository to an EC2 instance and restarts a 
 
 ### 1. Prepare the EC2 host (one-time)
 
-1. Launch an EC2 instance (Ubuntu 22.04+ or Amazon Linux 2023) with inbound access to TCP 8000 (or front it with an ALB/NGINX if you prefer port 80/443).
+1. Launch an EC2 instance (Ubuntu 22.04+ or Amazon Linux 2023) with inbound access to TCP 80 (or front it with an ALB/NGINX if you prefer TLS on 443).
 2. Install system packages:
 
    ```bash
@@ -111,10 +111,10 @@ Populate these secrets so `.github/workflows/deploy.yml` can transfer the code a
    - Copies the code into `/opt/nasa-skyview/app`.
    - Creates/updates a Python virtual environment in `/opt/nasa-skyview/venv`.
    - Installs Python dependencies with `pip`.
-   - Generates a fresh `/etc/systemd/system/nasa-skyview.service` tailored to the install paths.
-   - Restarts the `nasa-skyview` service (serving on port 8000 by default).
+   - Generates a fresh `/etc/systemd/system/nasa-skyview.service` tailored to the install paths (listening on port 80).
+   - Restarts the `nasa-skyview` service.
 
-Logs are written to `/var/log/nasa-skyview.log` and `/var/log/nasa-skyview.err`, and cached SkyView tiles persist in `/opt/nasa-skyview/outputs`.
+Logs are written to `/var/log/nasa-skyview.log` and `/var/log/nasa-skyview.err`, and cached SkyView tiles persist in `/opt/nasa-skyview/outputs`. Verify your security group allows inbound HTTP on port 80.
 
 To roll back, re-run the workflow on an earlier commit or SSH into the instance, check out the desired commit manually inside `/opt/nasa-skyview/app`, reinstall requirements, and restart the service (`sudo systemctl restart nasa-skyview`).
 

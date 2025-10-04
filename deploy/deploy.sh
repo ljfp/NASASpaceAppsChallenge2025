@@ -52,7 +52,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONUNBUFFERED=1
-Environment=UVICORN_PORT=8000
+Environment=UVICORN_PORT=80
 ExecStartPre=/usr/bin/mkdir -p $OUTPUT_DIR
 ExecStart=$VENV_DIR/bin/uvicorn src.server:app --host 0.0.0.0 --port \${UVICORN_PORT}
 Restart=on-failure
