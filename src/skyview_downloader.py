@@ -124,7 +124,7 @@ def fetch_survey_image(
     )
 
     images = SkyView.get_images(
-        position=pos,
+        position="Alpha Carinae", # Works only when using a string
         survey=[survey],
         coordinates="J2000",
         width=f"{width_deg} deg",

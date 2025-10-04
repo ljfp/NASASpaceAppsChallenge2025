@@ -19,7 +19,7 @@ OUTPUT_DIR = BASE_DIR / "outputs"
 FAVICON_PATH = WEB_DIR / "favicon.ico"
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 
