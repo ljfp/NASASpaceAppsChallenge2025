@@ -65,3 +65,59 @@ Then open <http://127.0.0.1:8000/app> in your browser. Rotate the sphere with yo
 ### 4. Inspect available surveys
 
 NASA maintains the full survey catalogue at <https://skyview.gsfc.nasa.gov/current/cgi/survey.pl>. Any entry in the "Survey" column is compatible with the `--survey` option.
+
+## ☁️ Continuous deployment on AWS EC2 (native runtime)
+
+Every push to `main` now syncs the repository to an EC2 instance and restarts a systemd-managed uvicorn process—no containers required.
+
+### 1. Prepare the EC2 host (one-time)
+
+1. Launch an EC2 instance (Ubuntu 22.04+ or Amazon Linux 2023) with inbound access to TCP 8000 (or front it with an ALB/NGINX if you prefer port 80/443).
+2. Install system packages:
+
+   ```bash
+   sudo apt update && sudo apt install -y python3 python3-venv python3-pip git
+   # Amazon Linux: sudo dnf install -y python3 python3-venv git
+   ```
+
+3. Create a deployment directory and give your SSH user ownership:
+
+   ```bash
+   sudo mkdir -p /opt/nasa-skyview/outputs
+   sudo chown $USER:$USER /opt/nasa-skyview/outputs
+   ```
+
+4. Ensure outbound internet access so the instance can reach NASA SkyView and PyPI.
+
+### 2. Configure GitHub secrets
+
+Populate these secrets so `.github/workflows/deploy.yml` can transfer the code and execute the deployment script:
+
+| Secret | Description |
+| --- | --- |
+| `EC2_HOST` | Public DNS name or IP of the EC2 instance. |
+| `EC2_USER` | SSH username (`ubuntu`, `ec2-user`, etc.). |
+| `EC2_SSH_KEY` | Private SSH key (PEM contents) matching the instance key pair. |
+| `EC2_INSTALL_DIR` *(optional)* | Alternate install path (defaults to `/opt/nasa-skyview`). |
+| `EC2_PYTHON_BIN` *(optional)* | Explicit Python interpreter (`python3.11`, etc.). |
+
+> AWS credentials are no longer required because the workflow connects directly over SSH.
+
+### 3. How the pipeline deploys
+
+1. GitHub Actions bundles `requirements.txt`, `src/`, `web/`, and `deploy/` into a tarball.
+2. The tarball is uploaded to `/tmp/nasa-skyview/` on the EC2 host.
+3. The remote script runs `deploy/deploy.sh`, which:
+   - Copies the code into `/opt/nasa-skyview/app`.
+   - Creates/updates a Python virtual environment in `/opt/nasa-skyview/venv`.
+   - Installs Python dependencies with `pip`.
+   - Installs/updates the systemd unit file `deploy/nasa-skyview.service`.
+   - Restarts the `nasa-skyview` service (serving on port 8000 by default).
+
+Logs are written to `/var/log/nasa-skyview.log` and `/var/log/nasa-skyview.err`, and cached SkyView tiles persist in `/opt/nasa-skyview/outputs`.
+
+To roll back, re-run the workflow on an earlier commit or SSH into the instance, check out the desired commit manually inside `/opt/nasa-skyview/app`, reinstall requirements, and restart the service (`sudo systemctl restart nasa-skyview`).
+
+## 🛣️ Roadmap ideas
+
+- Package the downloader as a service with caching and rate-limit protection.
