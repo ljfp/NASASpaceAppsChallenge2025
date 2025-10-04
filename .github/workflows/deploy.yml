@@ -1,0 +1,55 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Export deployment settings
+        run: |
+          echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> "$GITHUB_ENV"
+          echo "EC2_USER=${{ secrets.EC2_USER }}" >> "$GITHUB_ENV"
+          if [ -n "${{ vars.DEPLOY_PORT }}" ]; then
+            echo "PORT=${{ vars.DEPLOY_PORT }}" >> "$GITHUB_ENV"
+          else
+            echo "PORT=80" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync project to EC2
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.ruff_cache' \
+            ./ "$EC2_USER@$EC2_HOST:/home/$EC2_USER/nasa-sky-app"
+
+      - name: Execute remote deployment
+        run: |
+          ssh "$EC2_USER@$EC2_HOST" "
+            set -euo pipefail
+            cd ~/nasa-sky-app
+            chmod +x deploy/deploy.sh
+            APP_ROOT=/opt/nasa-sky-app SERVICE_NAME=nasa-sky-app PORT=${PORT:-80} ./deploy/deploy.sh
+          "
