@@ -38,38 +38,51 @@ NASASpaceAppsChallenge2025/
 ├── src/
 │   ├── __init__.py
 │   └── server.py         # FastAPI application serving the HTML page
-└── web/
-    └── index.html        # Static HTML served at the root route
-└── deploy/
-   └── deploy.sh         # Helper script to install and run the service via systemd
+├── web/
+│   ├── index.html        # Landing page served at the root route
+│   └── aladin.html       # Secondary page under /aladin
+├── deploy/
+│   └── remote_deploy.sh  # Remote helper script invoked by the CI workflow
+└── .github/
+    └── workflows/
+        └── deploy.yml    # Continuous deployment pipeline for EC2
 ```
 
 Feel free to build on this foundation for richer APIs or interfaces.
 
-## Deployment script
+## Continuous deployment to EC2
 
-The `deploy/deploy.sh` script provisions the application on a Linux host using `systemd`. It:
+Every push to `main` triggers the GitHub Actions workflow in `.github/workflows/deploy.yml`. The
+pipeline performs the following steps:
 
-- Syncs the repository into `/opt/nasa-sky-app/app` (configurable with `APP_ROOT`).
-- Ensures `/opt/nasa-sky-app` exists with the proper ownership, then syncs code and creates a
-   virtual environment for dependencies.
-- Generates a `systemd` unit that runs Uvicorn on port `80` by default.
-- Enables and restarts the service.
+1. Checks out the latest code.
+2. Copies the repository to your EC2 instance via `rsync` (preserving any existing `.venv` or
+   `logs` folders).
+3. Runs `deploy/remote_deploy.sh` on the instance to create/refresh a virtual environment, install
+   dependencies, and restart the application via `systemd` when available. If a systemd service is
+   not present, it falls back to launching Uvicorn in the background with `nohup`.
 
-Run it directly on the target server after cloning or syncing the repository:
+### Required GitHub secrets
 
-```bash
-chmod +x deploy/deploy.sh
-APP_ROOT=/opt/nasa-sky-app SERVICE_NAME=nasa-sky-app ./deploy/deploy.sh
-```
+Create the following secrets at **Settings → Secrets and variables → Actions**:
 
-Override `SERVICE_USER`, `SERVICE_GROUP`, `PORT`, or `PYTHON_BIN` to fit your environment. When the
-port is below `1024` (the default `80`), the generated unit grants
-`CAP_NET_BIND_SERVICE` so the application can bind to the port without running as root.
+- `EC2_HOST` – Public DNS name or IP address of the instance.
+- `EC2_USER` – SSH user (for example, `ubuntu`).
+- `EC2_SSH_KEY` – Private SSH key allowed to log in as `EC2_USER`.
 
-### GitHub Actions deployment
+### Optional overrides
 
-A workflow at `.github/workflows/deploy.yml` uses the repository secrets `EC2_HOST`, `EC2_USER`,
-and `EC2_SSH_KEY` to sync the codebase to an Ubuntu 24.04 EC2 instance and execute the deployment
-script remotely. It runs on every push to `main` (and can be triggered manually). Optional
-repository variable `DEPLOY_PORT` lets you override the port without editing the workflow.
+You can customise the deployment without editing the workflow by providing additional (optional)
+secrets:
+
+- `EC2_APP_DIR` – Absolute path where the repo should live (defaults to `/home/ubuntu/nasa-sky-explorer`).
+- `EC2_PYTHON_BIN` – Python interpreter used to build the virtual environment (defaults to
+  `/usr/bin/python3`).
+- `EC2_SERVICE_NAME` – Name of the `systemd` service to restart (defaults to `nasaspaceapps`).
+- `EC2_UVICORN_PORT` – Port exposed by Uvicorn when no `systemd` unit is available (defaults to
+  `8000`).
+
+Ensure the EC2 machine has `git`, `rsync`, `python3`, and `pip` installed. If you prefer a managed
+service, create a `systemd` unit named after `EC2_SERVICE_NAME` that executes
+`/home/ubuntu/nasa-sky-explorer/.venv/bin/uvicorn src.server:app --host 0.0.0.0 --port 8000`
+and the workflow will restart it after each deployment.
