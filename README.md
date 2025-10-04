@@ -20,6 +20,16 @@ A barebones FastAPI project that serves the landing page for the NASA Sky Explor
 
 3. Open <http://127.0.0.1:8000/> in your browser to view the page titled **“Minimal FastAPI App.”**
 
+## Linting
+
+Install Ruff into your virtual environment and run it against the project source to keep the
+codebase clean:
+
+```bash
+pip install ruff
+ruff check .
+```
+
 ## Project structure
 
 ```

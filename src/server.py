@@ -33,7 +33,6 @@ def read_aladin() -> str:
     return _read_html(ALADIN_PATH)
 
 
-
 if __name__ == "__main__":
     import uvicorn
 
