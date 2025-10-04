@@ -1,6 +1,6 @@
-# Minimal FastAPI Starter
+# NASA Sky Explorer Prototype
 
-A barebones FastAPI project that serves a single static HTML page.
+A barebones FastAPI project that serves the landing page for the NASA Sky Explorer Prototype
 
 ## Quickstart
 
