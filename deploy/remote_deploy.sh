@@ -31,17 +31,30 @@ pip install -r requirements.txt
 deactivate || true
 EOSCRIPT
 
-# Note: Port 80 binding is handled by systemd AmbientCapabilities
-# No need to set capabilities on the Python binary
+# Apply capability for port binding if needed (for systemd < 229)
+# Modern systemd (>= 229) uses AmbientCapabilities in the service file
+if [ "${UVICORN_PORT}" -lt 1024 ]; then
+  REAL_PYTHON=$(readlink -f "${APP_DIR}/.venv/bin/python")
+  if [ -f "${REAL_PYTHON}" ]; then
+    echo "Applying cap_net_bind_service to ${REAL_PYTHON}..."
+    setcap 'cap_net_bind_service=+ep' "${REAL_PYTHON}" || echo "Warning: Failed to set capability (may not be needed with modern systemd)"
+  fi
+fi
 
 LOG_DIR="${APP_DIR}/logs"
 mkdir -p "${LOG_DIR}"
 chown "${APP_USER}:${APP_USER}" "${LOG_DIR}"
 chmod 755 "${LOG_DIR}"
 
+# Always kill any existing uvicorn processes to avoid port conflicts
+echo "Stopping any existing uvicorn processes..."
+pkill -f "uvicorn src.server:app" || true
+sleep 2
+
 if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload || true
   if systemctl list-unit-files | grep -q "^${SERVICE_NAME}\.service"; then
+    echo "Restarting systemd service ${SERVICE_NAME}.service..."
     systemctl restart "${SERVICE_NAME}.service"
     exit 0
   fi
@@ -49,6 +62,5 @@ fi
 
 echo "systemd unit ${SERVICE_NAME}.service not found or unavailable. Relaunching Uvicorn with nohup."
 
-pkill -f "uvicorn src.server:app" || true
 sudo -u "${APP_USER}" nohup "${APP_DIR}/.venv/bin/uvicorn" src.server:app --host 0.0.0.0 --port "${UVICORN_PORT}" \
   >"${LOG_DIR}/uvicorn.log" 2>&1 &
