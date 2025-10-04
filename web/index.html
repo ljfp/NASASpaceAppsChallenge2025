@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NASA Sky Explorer Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="viewport"></div>
+    <div class="hud">
+      <div class="status">
+        <span id="surveyLabel">Survey: DSS2 Red</span>
+        <span id="centerLabel">Center RA/Dec: ---, ---</span>
+        <span id="zoomLabel">FoV: ---°</span>
+      </div>
+      <div class="controls">
+        <button id="zoomIn">Zoom In</button>
+        <button id="zoomOut">Zoom Out</button>
+        <button id="reset">Reset View</button>
+        <select id="survey">
+          <option value="DSS2 Red" selected>DSS2 Red (optical)</option>
+          <option value="DSS2 Blue">DSS2 Blue (optical)</option>
+          <option value="WISE 3.4">WISE 3.4µm (infrared)</option>
+          <option value="GALEX NUV">GALEX NUV (ultraviolet)</option>
+          <option value="Fermi 2FGL">Fermi 2FGL (gamma)</option>
+        </select>
+      </div>
+      <div class="notice">
+        Tiles are generated on demand from NASA's SkyView service via the local proxy server.
+      </div>
+    </div>
+    <div id="loading" class="overlay hidden">Fetching NASA data…</div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
