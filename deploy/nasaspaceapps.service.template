@@ -1,0 +1,27 @@
+[Unit]
+Description=NASA Sky Explorer Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=nasaapp
+Group=nasaapp
+WorkingDirectory=/opt/nasa-sky-explorer
+Environment="PATH=/opt/nasa-sky-explorer/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/opt/nasa-sky-explorer/.venv/bin/uvicorn src.server:app --host 0.0.0.0 --port 80
+Restart=always
+RestartSec=10
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nasa-sky-explorer/logs
+
+# Logging
+StandardOutput=append:/opt/nasa-sky-explorer/logs/uvicorn.log
+StandardError=append:/opt/nasa-sky-explorer/logs/uvicorn.log
+
+[Install]
+WantedBy=multi-user.target

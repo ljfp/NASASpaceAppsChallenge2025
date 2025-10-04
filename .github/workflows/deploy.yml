@@ -32,21 +32,28 @@ jobs:
           REMOTE_APP_DIR: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          APP_DIR="${REMOTE_APP_DIR:-/home/ubuntu/nasa-sky-explorer}"
-          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" "mkdir -p ${APP_DIR}"
+          APP_DIR="${REMOTE_APP_DIR:-/opt/nasa-sky-explorer}"
+          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" "sudo mkdir -p ${APP_DIR}"
 
       - name: Sync repository to EC2
         env:
           REMOTE_APP_DIR: ${{ env.APP_DIR }}
         run: |
           set -euo pipefail
-          APP_DIR="${REMOTE_APP_DIR:-/home/ubuntu/nasa-sky-explorer}"
+          APP_DIR="${REMOTE_APP_DIR:-/opt/nasa-sky-explorer}"
+          TEMP_DIR="/tmp/nasa-sky-explorer-deploy-$$"
+          
+          # Sync to temp directory first
+          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" "mkdir -p ${TEMP_DIR}"
           rsync -az --delete \
             --exclude ".git" \
             --exclude ".github/" \
             --exclude ".venv/" \
             --exclude "logs/" \
-            ./ "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${APP_DIR}/"
+            ./ "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${TEMP_DIR}/"
+          
+          # Move from temp to final location with sudo
+          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" "sudo rsync -a --delete ${TEMP_DIR}/ ${APP_DIR}/ && rm -rf ${TEMP_DIR}"
 
       - name: Install Python dependencies and restart the service
         env:
@@ -56,10 +63,10 @@ jobs:
           REMOTE_PORT: ${{ env.UVICORN_PORT }}
         run: |
           set -euo pipefail
-          APP_DIR="${REMOTE_APP_DIR:-/home/ubuntu/nasa-sky-explorer}"
+          APP_DIR="${REMOTE_APP_DIR:-/opt/nasa-sky-explorer}"
           PYTHON_BIN="${REMOTE_PYTHON_BIN:-/usr/bin/python3}"
           SERVICE_NAME="${REMOTE_SERVICE:-nasaspaceapps}"
-          UVICORN_PORT="${REMOTE_PORT:-8000}"
+          UVICORN_PORT="${REMOTE_PORT:-80}"
 
           ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
-            "cd '${APP_DIR}' && APP_DIR='${APP_DIR}' PYTHON_BIN='${PYTHON_BIN}' SERVICE_NAME='${SERVICE_NAME}' UVICORN_PORT='${UVICORN_PORT}' bash deploy/remote_deploy.sh"
+            "cd '${APP_DIR}' && sudo APP_DIR='${APP_DIR}' PYTHON_BIN='${PYTHON_BIN}' SERVICE_NAME='${SERVICE_NAME}' UVICORN_PORT='${UVICORN_PORT}' bash deploy/remote_deploy.sh"
