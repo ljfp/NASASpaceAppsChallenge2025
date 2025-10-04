@@ -8,17 +8,29 @@ from fastapi.responses import HTMLResponse
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
 INDEX_PATH = WEB_DIR / "index.html"
+ALADIN_PATH = WEB_DIR / "aladin.html"
 
 app = FastAPI(title="NASA Sky Explorer Prototype")
+
+
+def _read_html(path: Path) -> str:
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"{path.name} not found")
+    return path.read_text(encoding="utf-8")
 
 
 @app.get("/", response_class=HTMLResponse)
 def read_index() -> str:
     """Return the contents of the bundled ``index.html`` file."""
 
-    if not INDEX_PATH.exists():
-        raise HTTPException(status_code=404, detail="index.html not found")
-    return INDEX_PATH.read_text(encoding="utf-8")
+    return _read_html(INDEX_PATH)
+
+
+@app.get("/aladin", response_class=HTMLResponse)
+def read_aladin() -> str:
+    """Serve the Aladin viewer page."""
+
+    return _read_html(ALADIN_PATH)
 
 
 
