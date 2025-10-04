@@ -11,6 +11,7 @@
 		<script src='https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js' charset='utf-8'></script>
 		<script>
 			var aladin;
+			var nasa_hips;
 			A.init.then(() => {
 				aladin = A.aladin(
 					'#aladin-lite-div',
@@ -24,6 +25,8 @@
 						showCooGrid: true, // set the grid
 						fullScreen: true
 					});
+				//nasa_hips = aladin.newImageSurvey("https://skyview.gsfc.nasa.gov/hips/skyview.hips");
+				//aladin.setImageLayer(nasa_hips);
 				});
 		</script>
 	</body>
