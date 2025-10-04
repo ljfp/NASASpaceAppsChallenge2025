@@ -23,7 +23,10 @@
 					<input id="fits-url" type="url" placeholder="https://data.nasa.gov/sample.fits" aria-label="FITS file URL" />
 					<button type="button" id="load-url">Load URL</button>
 				</div>
-				<button type="button" id="add-marker" class="marker-control">Add marker</button>
+				<div class="marker-actions">
+					<button type="button" id="add-marker" class="marker-control">Add marker</button>
+					<button type="button" id="remove-marker" class="marker-control">Remove marker</button>
+				</div>
 			</div>
 			<div class="samples">
 				<span class="samples-label">Try a sample dataset:</span>
@@ -93,6 +96,7 @@
 			const urlInput = document.getElementById('fits-url');
 			const loadUrlButton = document.getElementById('load-url');
 			const addMarkerButton = document.getElementById('add-marker');
+			const removeMarkerButton = document.getElementById('remove-marker');
 			const sampleButtons = Array.from(document.querySelectorAll('[data-fits-url]'));
 			const markerModal = document.getElementById('marker-modal');
 			const markerForm = markerModal ? markerModal.querySelector('form') : null;
@@ -104,7 +108,9 @@
 			let aladinInstance = null;
 			let currentRequestId = 0;
 			const markerLayersByColor = new Map();
+			const markerCatalogMap = new WeakMap();
 			let isAddingMarker = false;
+			let isRemovingMarker = false;
 			let storedStatusText = statusMessage.textContent;
 			let resolveMarkerDialog = null;
 			const MARKER_DEFAULT_COLOR = '#60A5FA';
@@ -398,12 +404,17 @@
 					showError('The viewer is not ready yet. Please wait a moment and try again.');
 					return;
 				}
+				if (active) {
+					toggleRemovalMode(false);
+				}
 				isAddingMarker = active;
-				addMarkerButton.classList.toggle('marker-control--active', isAddingMarker);
+				if (addMarkerButton) {
+					addMarkerButton.classList.toggle('marker-control--active', isAddingMarker);
+				}
 				if (isAddingMarker) {
 					storedStatusText = statusMessage.textContent;
 					statusMessage.textContent = 'Click anywhere on the map to place a marker. Press Esc to cancel.';
-				} else {
+				} else if (!isRemovingMarker) {
 					statusMessage.textContent = storedStatusText;
 				}
 				if (!isAddingMarker) {
@@ -413,12 +424,42 @@
 				}
 			}
 
+			function toggleRemovalMode(active) {
+				if (!aladinInstance) {
+					showError('The viewer is not ready yet. Please wait a moment and try again.');
+					return;
+				}
+				if (active) {
+					toggleMarkerMode(false);
+				}
+				isRemovingMarker = active;
+				if (removeMarkerButton) {
+					removeMarkerButton.classList.toggle('marker-control--active', isRemovingMarker);
+				}
+				if (isRemovingMarker) {
+					storedStatusText = statusMessage.textContent;
+					statusMessage.textContent = 'Click an existing marker to remove it. Press Esc to cancel.';
+					window.addEventListener('keydown', cancelRemovalModeOnEscape);
+				} else {
+					window.removeEventListener('keydown', cancelRemovalModeOnEscape);
+					if (!isAddingMarker) {
+						statusMessage.textContent = storedStatusText;
+					}
+				}
+			}
+
 			function cancelMarkerModeOnEscape(event) {
 				if (event.key === 'Escape') {
 					if (isMarkerDialogOpen()) {
 						return;
 					}
 					toggleMarkerMode(false);
+				}
+			}
+
+			function cancelRemovalModeOnEscape(event) {
+				if (event.key === 'Escape') {
+					toggleRemovalMode(false);
 				}
 			}
 
@@ -444,6 +485,7 @@
 					color: validColor
 				};
 				const marker = A.marker(ra, dec, markerOptions);
+				markerCatalogMap.set(marker, targetLayer);
 				targetLayer.addSources([marker]);
 				aladinInstance.gotoRaDec(ra, dec);
 				const confirmation = `${markerOptions.popupTitle} saved at RA ${ra.toFixed(3)}, Dec ${dec.toFixed(3)}`;
@@ -479,6 +521,33 @@
 							}
 							toggleMarkerMode(false);
 						});
+
+							aladinInstance.on('objectClicked', (source) => {
+								if (!isRemovingMarker || !source) {
+									return;
+								}
+								let catalog = markerCatalogMap.get(source);
+								if (!catalog) {
+									for (const candidate of markerLayersByColor.values()) {
+										if (candidate && typeof candidate.remove === 'function') {
+											candidate.remove(source);
+											catalog = candidate;
+											break;
+										}
+									}
+								} else {
+									catalog.remove(source);
+								}
+								if (!catalog) {
+									return;
+								}
+								const title = (source.data && source.data.popupTitle) || 'Marker';
+								const confirmation = `${title} removed.`;
+								statusMessage.textContent = confirmation;
+								storedStatusText = confirmation;
+								markerCatalogMap.delete(source);
+								toggleRemovalMode(false);
+							});
 					});
 
 					initialiseSampleButtons();
@@ -508,6 +577,11 @@
 			addMarkerButton.addEventListener('click', () => {
 				toggleMarkerMode(!isAddingMarker);
 			});
+			if (removeMarkerButton) {
+				removeMarkerButton.addEventListener('click', () => {
+					toggleRemovalMode(!isRemovingMarker);
+				});
+			}
 
 			initialiseViewer();
 		</script>
