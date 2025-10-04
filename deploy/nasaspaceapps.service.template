@@ -12,15 +12,19 @@ ExecStart=/opt/nasa-sky-explorer/.venv/bin/uvicorn src.server:app --host 0.0.0.0
 Restart=always
 RestartSec=10
 
+# Capability to bind to port 80
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
 # Security hardening
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
-ReadWritePaths=/opt/nasa-sky-explorer/logs
 
 # Logging
-StandardOutput=append:/opt/nasa-sky-explorer/logs/uvicorn.log
-StandardError=append:/opt/nasa-sky-explorer/logs/uvicorn.log
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nasaspaceapps
 
 [Install]
 WantedBy=multi-user.target

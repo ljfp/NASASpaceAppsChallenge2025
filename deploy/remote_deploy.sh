@@ -31,14 +31,8 @@ pip install -r requirements.txt
 deactivate || true
 EOSCRIPT
 
-# Apply capability to allow binding to port 80 (if port < 1024)
-if [ "${UVICORN_PORT}" -lt 1024 ]; then
-  REAL_PYTHON=$(readlink -f "${APP_DIR}/.venv/bin/python")
-  if [ -f "${REAL_PYTHON}" ]; then
-    echo "Applying cap_net_bind_service to ${REAL_PYTHON}..."
-    setcap 'cap_net_bind_service=+ep' "${REAL_PYTHON}" || echo "Warning: Failed to set capability"
-  fi
-fi
+# Note: Port 80 binding is handled by systemd AmbientCapabilities
+# No need to set capabilities on the Python binary
 
 LOG_DIR="${APP_DIR}/logs"
 mkdir -p "${LOG_DIR}"
