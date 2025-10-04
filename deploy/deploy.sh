@@ -104,4 +104,8 @@ ${SUDO_BIN} systemctl daemon-reload
 ${SUDO_BIN} systemctl enable --now "${SERVICE_NAME}.service"
 ${SUDO_BIN} systemctl restart "${SERVICE_NAME}.service"
 
-${SUDO_BIN} systemctl status "${SERVICE_NAME}.service" --no-pager
+if ! ${SUDO_BIN} systemctl status "${SERVICE_NAME}.service" --no-pager; then
+  echo "Service failed to start, showing recent logs:" >&2
+  ${SUDO_BIN} journalctl -u "${SERVICE_NAME}.service" -n 50 --no-pager || true
+  exit 1
+fi

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
@@ -23,11 +23,14 @@ def _read_html(path: Path) -> str:
 def read_index() -> str:
     """Return the contents of the bundled ``index.html`` file."""
 
+    return _read_html(INDEX_PATH)
 
-@app.get("/aladin")
-async def aladin() -> FileResponse:
+
+@app.get("/aladin", response_class=HTMLResponse)
+def read_aladin() -> str:
     """Serve the Aladin viewer page."""
-    return FileResponse("web/aladin.html")
+
+    return _read_html(ALADIN_PATH)
 
 if __name__ == "__main__":
     import uvicorn
