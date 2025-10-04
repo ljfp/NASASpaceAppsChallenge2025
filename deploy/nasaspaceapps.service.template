@@ -15,7 +15,6 @@ RestartSec=10
 # Security hardening
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/nasa-sky-explorer/logs
 

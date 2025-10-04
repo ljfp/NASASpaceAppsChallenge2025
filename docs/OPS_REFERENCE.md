@@ -50,12 +50,18 @@ sudo ss -ltnp 'sport = :80'
 # Check all listening ports
 sudo ss -ltnp
 
-# Test local connectivity
+# Test local connectivity (use GET, not HEAD)
+curl http://localhost/
+
+# HEAD requests return 405 - this is normal!
 curl -I http://localhost/
+# Returns: HTTP/1.1 405 Method Not Allowed (expected behavior)
 
 # Test from outside (replace with your IP)
-curl -I http://YOUR_EC2_IP/
+curl http://YOUR_EC2_IP/
 ```
+
+**Note:** The FastAPI root endpoint only accepts GET requests. If you use `curl -I` (HEAD request), you'll get a 405 "Method Not Allowed" response. This doesn't mean the app is broken - use `curl http://localhost/` instead to see the actual HTML response.
 
 ## Application Directory
 
@@ -118,6 +124,55 @@ cat /opt/nasa-sky-explorer/.github/workflows/deploy.yml
 ```
 
 ## Troubleshooting
+
+### SystemD service fails but app is running
+
+If `systemctl status` shows the service failing, but the app responds on port 80:
+
+```bash
+# Check what process is actually running
+ps aux | grep uvicorn
+sudo ss -ltnp 'sport = :80'
+```
+
+**Cause:** The systemd service failed to start, so the deploy script's fallback nohup process is running instead.
+
+**Solution:** Fix the systemd service and restart properly:
+
+```bash
+# 1. Stop the fallback process
+sudo pkill -f "uvicorn src.server:app"
+
+# 2. Update the service file (if needed after a deploy)
+sudo cp /opt/nasa-sky-explorer/deploy/nasaspaceapps.service.template \
+  /etc/systemd/system/nasaspaceapps.service
+
+# 3. Reload and restart
+sudo systemctl daemon-reload
+sudo systemctl restart nasaspaceapps.service
+
+# 4. Check it's working
+sudo systemctl status nasaspaceapps.service
+```
+
+### curl returns "405 Method Not Allowed"
+
+If `curl -I http://localhost/` returns HTTP 405:
+
+```bash
+curl -I http://localhost/
+# HTTP/1.1 405 Method Not Allowed
+# allow: GET
+```
+
+**This is normal!** The FastAPI root endpoint only accepts GET requests, not HEAD requests.
+
+**Solution:** Use a GET request instead:
+
+```bash
+curl http://localhost/
+# Should return HTML content
+```
 
 ### Application won't start
 
