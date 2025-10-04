@@ -42,9 +42,27 @@ mkdir -p "$OUTPUT_DIR"
 sudo touch "$LOG_DIR/nasa-skyview.log" "$LOG_DIR/nasa-skyview.err"
 sudo chown "$USER":"$USER" "$LOG_DIR/nasa-skyview.log" "$LOG_DIR/nasa-skyview.err"
 
-sudo cp "$SOURCE_DIR/deploy/nasa-skyview.service" "$SERVICE_FILE"
-sudo sed -i "s|@@APP_DIR@@|$APP_DIR|g" "$SERVICE_FILE"
-sudo sed -i "s|@@VENV_DIR@@|$VENV_DIR|g" "$SERVICE_FILE"
+sudo tee "$SERVICE_FILE" >/dev/null <<EOF
+[Unit]
+Description=NASA SkyView Prototype
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$APP_DIR
+Environment=PYTHONUNBUFFERED=1
+Environment=UVICORN_PORT=8000
+ExecStartPre=/usr/bin/mkdir -p $OUTPUT_DIR
+ExecStart=$VENV_DIR/bin/uvicorn src.server:app --host 0.0.0.0 --port \${UVICORN_PORT}
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:$LOG_DIR/nasa-skyview.log
+StandardError=append:$LOG_DIR/nasa-skyview.err
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable nasa-skyview.service

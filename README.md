@@ -111,7 +111,7 @@ Populate these secrets so `.github/workflows/deploy.yml` can transfer the code a
    - Copies the code into `/opt/nasa-skyview/app`.
    - Creates/updates a Python virtual environment in `/opt/nasa-skyview/venv`.
    - Installs Python dependencies with `pip`.
-   - Installs/updates the systemd unit file `deploy/nasa-skyview.service`.
+   - Generates a fresh `/etc/systemd/system/nasa-skyview.service` tailored to the install paths.
    - Restarts the `nasa-skyview` service (serving on port 8000 by default).
 
 Logs are written to `/var/log/nasa-skyview.log` and `/var/log/nasa-skyview.err`, and cached SkyView tiles persist in `/opt/nasa-skyview/outputs`.
