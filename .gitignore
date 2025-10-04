@@ -1,3 +1,4 @@
 src/__pycache__/
 .venv/
 .ruff_cache
+output*

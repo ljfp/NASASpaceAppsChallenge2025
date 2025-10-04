@@ -247,14 +247,20 @@
 					return;
 				}
 				try {
-					await A.init;
-					aladinInstance = await A.aladin('#aladin-lite-div', {
-						cooFrame: 'icrs',
-						projection: 'AIT',
-						showCooGrid: false,
-						fullScreen: true,
-						fov: 5,
-						target: 'M 31'
+					A.init.then(() => {
+						aladinInstance = A.aladin('#aladin-lite-div', {
+							cooFrame: 'icrs',
+							projection: 'AIT',
+							showCooGrid: false,
+							fullScreen: true,
+							fov: 5,
+							target: 'M 31'
+						});
+
+						var marker1 = A.marker(0, 0, {popupTitle: "Test", popupDesc: "TEST"});
+						var markerLayer = A.catalog();
+						aladinInstance.addCatalog(markerLayer);
+						markerLayer.addSources([marker1]);
 					});
 
 					initialiseSampleButtons();
