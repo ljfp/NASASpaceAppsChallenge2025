@@ -373,7 +373,7 @@ function loadFits(source, options = {}) {
 	};
 
 	try {
-		const result = aladinInstance.displayFITS(source, options.params || {}, handleSuccess, handleError);
+		const result = aladinInstance.displayFITS("/proxy/?q=" + source, options.params || {}, handleSuccess, handleError);
 		if (result && typeof result.then === 'function') {
 			result.catch(handleError).finally(finish);
 		}
@@ -468,11 +468,6 @@ urlInput.addEventListener('keydown', (event) => {
 		event.preventDefault();
 		handleUrlLoad();
 	}
-});
-
-openComparisonButton = document.getElementById("open-comparison");
-openComparisonButton.addEventListener('click', () => {
-	console.log(aladinInstance.getBaseImageLayer());
 });
 
 if (addMarkerButton) {

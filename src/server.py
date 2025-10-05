@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+import requests
+
+from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -34,7 +36,7 @@ if not ASSETS_DIR.exists():
 
 app = FastAPI(title="NASA Sky Explorer Prototype")
 app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="frontend-assets")
-app.mount("/static", StaticFiles(directory=WEB_DIR), name="legacy-static")
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="legacy-static")
 
 
 def _read_html(path: Path) -> str:
@@ -63,6 +65,15 @@ def favicon() -> Response:
     """Return a small SVG favicon to satisfy browser requests."""
 
     return Response(content=FAVICON_SVG, media_type="image/svg+xml")
+
+
+@app.get("/proxy/", include_in_schema=False)
+def proxy(request: Request) -> Response:
+    """Proxy requests to avoid CORS"""
+    request = requests.get(request.query_params["q"])
+    if request.status_code != 200:
+        raise HTTPException(status_code=404, detail="Can't request url.")
+    return Response(content=request.content, media_type="text/html")
 
 
 if __name__ == "__main__":
