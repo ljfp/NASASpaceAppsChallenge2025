@@ -4,21 +4,30 @@ A FastAPI-powered prototype that serves an interactive Aladin Lite interface for
 
 ## Quickstart
 
-1. Create a virtual environment and install the dependencies:
+1. Build the CosmoView frontend (repeat whenever you change the React app):
 
    ```bash
-   python -m venv .venv
+   cd CosmoView
+   npm install
+   npm run build
+   cd ..
+   ```
+
+2. Create a virtual environment and install the FastAPI dependencies:
+
+   ```bash
+   python3 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
-2. Launch the development server:
+3. Launch the development server:
 
    ```bash
    uvicorn src.server:app --reload
    ```
 
-3. Open <http://127.0.0.1:8000/> in your browser and click **“Launch the viewer.”** The FITS explorer lives at <http://127.0.0.1:8000/aladin>.
+4. Open <http://127.0.0.1:8000/> in your browser. The CosmoView landing page now lives at the root route with an **“Explore the Universe”** button that jumps directly to the Aladin viewer at <http://127.0.0.1:8000/aladin>.
 
 ### Working with FITS datasets
 
@@ -42,12 +51,14 @@ ruff check .
 
 ```
 NASASpaceAppsChallenge2025/
+├── CosmoView/                          # React + Vite front-end project
+│   ├── client/src/                     # UI components and pages
+│   └── dist/public/                    # Production build served by FastAPI
 ├── requirements.txt                    # FastAPI and Uvicorn dependencies
 ├── src/
 │   ├── __init__.py
-│   └── server.py                       # FastAPI application serving the HTML page
+│   └── server.py                       # FastAPI application that serves both front-ends
 ├── web/
-│   ├── index.html                      # Landing page served at the root route
 │   ├── aladin.html                     # FITS explorer with Aladin Lite integration
 │   └── styles.css                      # Styling for the viewer interface
 ├── deploy/
@@ -70,12 +81,21 @@ Every push to `main` triggers the GitHub Actions workflow in `.github/workflows/
 pipeline performs the following steps:
 
 1. Checks out the latest code.
-2. Copies the repository to `/opt/nasa-sky-explorer` on your EC2 instance via `rsync`.
-3. Creates a dedicated service user (`nasaapp`) if it doesn't exist.
-4. Sets proper ownership and permissions for the application directory.
-5. Installs Python dependencies in a virtual environment owned by the service user.
-6. Applies necessary capabilities to bind to port 80 (if running on a privileged port).
-7. Restarts the systemd service or launches Uvicorn as a background process.
+2. Installs Node.js dependencies for the CosmoView frontend and builds the production bundle.
+3. Copies the repository to `/opt/nasa-sky-explorer` on your EC2 instance via `rsync`, including
+   the built `CosmoView/dist/public` assets (but excluding local build artefacts like
+   `node_modules/`).
+4. Creates a dedicated service user (`nasaapp`) if it doesn't exist.
+5. Sets proper ownership and permissions for the application directory.
+6. Installs Python dependencies in a virtual environment owned by the service user.
+7. Validates that the frontend assets were synced successfully (no rebuild on the server needed if
+   Node.js isn't available).
+8. Applies necessary capabilities to bind to port 80 (if running on a privileged port).
+9. Restarts the systemd service or launches Uvicorn as a background process.
+
+> **Note:** Node.js is **not required** on the EC2 instance since the frontend is built by the
+> GitHub Actions runner and synced as a prebuilt bundle. You only need Node.js on the server if you
+> plan to rebuild the frontend manually after deployment.
 
 ### Required GitHub secrets
 

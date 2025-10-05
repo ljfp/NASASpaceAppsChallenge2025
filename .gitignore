@@ -2,3 +2,8 @@ src/__pycache__/
 .venv/
 .ruff_cache
 output*
+
+# CosmoView development files
+CosmoView/.local/
+CosmoView/.replit
+CosmoView/node_modules/
