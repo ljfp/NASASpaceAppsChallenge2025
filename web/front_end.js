@@ -44,6 +44,33 @@ const DEFAULT_SAMPLE = sampleButtons.length
 	  }
 	: null;
 
+function createMarkerIcon(color) {
+	const size = 22;
+	const canvas = document.createElement('canvas');
+	canvas.width = size;
+	canvas.height = size;
+	const context = canvas.getContext('2d');
+	if (!context) {
+		return canvas;
+	}
+	const normalizedColor = typeof color === 'string' && color.trim() ? color : '#60A5FA';
+	context.clearRect(0, 0, size, size);
+	context.beginPath();
+	context.arc(size / 2, size / 2, (size / 2) - 2, 0, Math.PI * 2);
+	context.closePath();
+	context.fillStyle = normalizedColor;
+	context.fill();
+	context.lineWidth = 2;
+	context.strokeStyle = '#0f172a';
+	context.stroke();
+	context.beginPath();
+	context.arc(size / 2, size / 2, 3, 0, Math.PI * 2);
+	context.closePath();
+	context.fillStyle = '#0f172a';
+	context.fill();
+	return canvas;
+}
+
 function showError(message) {
 	errorBox.textContent = message;
 	errorBox.classList.remove('hidden');
@@ -248,11 +275,13 @@ function handleMarkerSubmission(event) {
 		popupTitle: title,
 		popupDesc: description
 	};
-	if (color) {
-		markerOptions.color = color;
-	}
 	try {
 		const marker = A.marker(pendingMarkerPosition.ra, pendingMarkerPosition.dec, markerOptions);
+		marker.useMarkerDefaultIcon = false;
+		if (typeof marker.setImage === 'function') {
+			marker.setImage(createMarkerIcon(color));
+		}
+		marker.color = color;
 		markerLayer.addSources([marker]);
 		placedMarkers.push(marker);
 		updateRemoveMarkerState();
