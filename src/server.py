@@ -70,10 +70,13 @@ def favicon() -> Response:
 @app.get("/proxy/", include_in_schema=False)
 def proxy(request: Request) -> Response:
     """Proxy requests to avoid CORS"""
-    request = requests.get(request.query_params["q"])
-    if request.status_code != 200:
+    try:
+        request = requests.get(request.query_params["q"])
+        request.raise_for_status()
+    except Exception:
         raise HTTPException(status_code=404, detail="Can't request url.")
-    return Response(content=request.content, media_type="text/html")
+    else:
+        return Response(content=request.content, media_type="text/html")
 
 
 if __name__ == "__main__":
