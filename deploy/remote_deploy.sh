@@ -39,7 +39,13 @@ EOSCRIPT
 FRONTEND_PATH="${APP_DIR}/${FRONTEND_DIR}"
 FRONTEND_BUILD_DIR="${FRONTEND_PATH}/dist/public"
 
-if [ -d "${FRONTEND_PATH}" ]; then
+# Check if we have prebuilt assets already
+if [ -d "${FRONTEND_BUILD_DIR}" ]; then
+  echo "Found prebuilt frontend assets at ${FRONTEND_BUILD_DIR}."
+  echo "Skipping npm build since assets are already present."
+  chown -R "${APP_USER}:${APP_USER}" "${FRONTEND_PATH}" 2>/dev/null || true
+elif [ -d "${FRONTEND_PATH}" ]; then
+  # Frontend source exists but no built assets, need to build
   if ! command -v "${NPM_BIN}" >/dev/null 2>&1; then
     echo "Error: npm command '${NPM_BIN}' not found. Install Node.js/npm or set NPM_BIN." >&2
     exit 1
@@ -58,16 +64,9 @@ if [ -d "${FRONTEND_PATH}" ]; then
 
   chown -R "${APP_USER}:${APP_USER}" "${FRONTEND_PATH}"
 else
-  # If the source directory is missing, fall back to an already built bundle
-  PREBUILT_DIST="${APP_DIR}/CosmoView/dist/public"
-  if [ -d "${PREBUILT_DIST}" ]; then
-    echo "Frontend source directory not found. Using existing assets at ${PREBUILT_DIST}."
-    FRONTEND_BUILD_DIR="${PREBUILT_DIST}"
-  else
-    echo "Error: Frontend directory ${FRONTEND_PATH} not found and no prebuilt assets present." >&2
-    echo "Ensure the CosmoView frontend is built before deployment or set FRONTEND_DIR." >&2
-    exit 1
-  fi
+  echo "Error: Frontend directory ${FRONTEND_PATH} not found and no prebuilt assets present." >&2
+  echo "Ensure the CosmoView frontend is built before deployment or set FRONTEND_DIR." >&2
+  exit 1
 fi
 
 # Apply capability for port binding if needed (for systemd < 229)
