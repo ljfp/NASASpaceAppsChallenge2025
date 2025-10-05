@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js
+        if: hashFiles('CosmoView/package.json') != ''
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -27,12 +28,12 @@ jobs:
           cache-dependency-path: CosmoView/package-lock.json
 
       - name: Install frontend dependencies
-        working-directory: CosmoView
-        run: npm ci
+        if: hashFiles('CosmoView/package.json') != ''
+        run: npm ci --prefix CosmoView
 
       - name: Build frontend bundle
-        working-directory: CosmoView
-        run: npm run build
+        if: hashFiles('CosmoView/package.json') != ''
+        run: npm --prefix CosmoView run build
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
