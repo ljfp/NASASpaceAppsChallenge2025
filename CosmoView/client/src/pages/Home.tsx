@@ -33,7 +33,7 @@ export default function Home() {
             Have questions or want to collaborate with us?
           </p>
           <a 
-            href="mailto:contact@spacevision.com"
+            href="mailto:ljfp@ljfp.xyz"
             className="inline-block px-8 py-4 rounded-md text-white font-semibold
                      bg-gradient-to-r from-space-blue to-space-purple
                      hover:opacity-90 transition-opacity shadow-lg shadow-space-blue/30"
