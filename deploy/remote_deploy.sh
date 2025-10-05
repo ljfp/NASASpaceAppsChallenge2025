@@ -6,6 +6,10 @@ PYTHON_BIN="${PYTHON_BIN:-/usr/bin/python3}"
 SERVICE_NAME="${SERVICE_NAME:-nasaspaceapps}"
 UVICORN_PORT="${UVICORN_PORT:-80}"
 APP_USER="${APP_USER:-nasaapp}"
+FRONTEND_DIR="${FRONTEND_DIR:-CosmoView}"
+NPM_BIN="${NPM_BIN:-npm}"
+
+cd "${APP_DIR}"
 
 # Create dedicated service user if it doesn't exist
 if ! id "${APP_USER}" >/dev/null 2>&1; then
@@ -30,6 +34,32 @@ pip install --upgrade pip wheel
 pip install -r requirements.txt
 deactivate || true
 EOSCRIPT
+
+# Build the frontend bundle
+FRONTEND_PATH="${APP_DIR}/${FRONTEND_DIR}"
+if [ ! -d "${FRONTEND_PATH}" ]; then
+  echo "Error: Frontend directory ${FRONTEND_PATH} not found."
+  exit 1
+fi
+
+if ! command -v "${NPM_BIN}" >/dev/null 2>&1; then
+  echo "Error: npm command '${NPM_BIN}' not found. Install Node.js/npm or set NPM_BIN." >&2
+  exit 1
+fi
+
+echo "Installing frontend dependencies with ${NPM_BIN}..."
+sudo -u "${APP_USER}" bash -c "cd '${FRONTEND_PATH}' && ${NPM_BIN} install"
+
+echo "Building frontend production bundle..."
+sudo -u "${APP_USER}" bash -c "cd '${FRONTEND_PATH}' && ${NPM_BIN} run build"
+
+FRONTEND_BUILD_DIR="${FRONTEND_PATH}/dist/public"
+if [ ! -d "${FRONTEND_BUILD_DIR}" ]; then
+  echo "Error: Frontend build directory ${FRONTEND_BUILD_DIR} was not created." >&2
+  exit 1
+fi
+
+chown -R "${APP_USER}:${APP_USER}" "${FRONTEND_PATH}"
 
 # Apply capability for port binding if needed (for systemd < 229)
 # Modern systemd (>= 229) uses AmbientCapabilities in the service file

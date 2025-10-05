@@ -7,8 +7,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "CosmoView" / "dist" / "public"
 WEB_DIR = BASE_DIR / "web"
-INDEX_PATH = WEB_DIR / "index.html"
+INDEX_PATH = FRONTEND_DIR / "index.html"
 ALADIN_PATH = WEB_DIR / "aladin.html"
 FAVICON_SVG = (
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'>\n"
@@ -18,8 +19,22 @@ FAVICON_SVG = (
     "</svg>"
 )
 
+if not INDEX_PATH.exists():
+    raise RuntimeError(
+        "Frontend bundle not found. Run 'npm run build' in the CosmoView directory "
+        "to generate dist/public before starting the API server."
+    )
+
+ASSETS_DIR = FRONTEND_DIR / "assets"
+if not ASSETS_DIR.exists():
+    raise RuntimeError(
+        "Frontend assets directory missing. Ensure the CosmoView build succeeded "
+        "and dist/public/assets is present."
+    )
+
 app = FastAPI(title="NASA Sky Explorer Prototype")
-app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="frontend-assets")
+app.mount("/static", StaticFiles(directory=WEB_DIR), name="legacy-static")
 
 
 def _read_html(path: Path) -> str:
