@@ -37,29 +37,38 @@ EOSCRIPT
 
 # Build the frontend bundle
 FRONTEND_PATH="${APP_DIR}/${FRONTEND_DIR}"
-if [ ! -d "${FRONTEND_PATH}" ]; then
-  echo "Error: Frontend directory ${FRONTEND_PATH} not found."
-  exit 1
-fi
-
-if ! command -v "${NPM_BIN}" >/dev/null 2>&1; then
-  echo "Error: npm command '${NPM_BIN}' not found. Install Node.js/npm or set NPM_BIN." >&2
-  exit 1
-fi
-
-echo "Installing frontend dependencies with ${NPM_BIN}..."
-sudo -u "${APP_USER}" bash -c "cd '${FRONTEND_PATH}' && ${NPM_BIN} install"
-
-echo "Building frontend production bundle..."
-sudo -u "${APP_USER}" bash -c "cd '${FRONTEND_PATH}' && ${NPM_BIN} run build"
-
 FRONTEND_BUILD_DIR="${FRONTEND_PATH}/dist/public"
-if [ ! -d "${FRONTEND_BUILD_DIR}" ]; then
-  echo "Error: Frontend build directory ${FRONTEND_BUILD_DIR} was not created." >&2
-  exit 1
-fi
 
-chown -R "${APP_USER}:${APP_USER}" "${FRONTEND_PATH}"
+if [ -d "${FRONTEND_PATH}" ]; then
+  if ! command -v "${NPM_BIN}" >/dev/null 2>&1; then
+    echo "Error: npm command '${NPM_BIN}' not found. Install Node.js/npm or set NPM_BIN." >&2
+    exit 1
+  fi
+
+  echo "Installing frontend dependencies with ${NPM_BIN}..."
+  sudo -u "${APP_USER}" bash -c "cd '${FRONTEND_PATH}' && ${NPM_BIN} install"
+
+  echo "Building frontend production bundle..."
+  sudo -u "${APP_USER}" bash -c "cd '${FRONTEND_PATH}' && ${NPM_BIN} run build"
+
+  if [ ! -d "${FRONTEND_BUILD_DIR}" ]; then
+    echo "Error: Frontend build directory ${FRONTEND_BUILD_DIR} was not created." >&2
+    exit 1
+  fi
+
+  chown -R "${APP_USER}:${APP_USER}" "${FRONTEND_PATH}"
+else
+  # If the source directory is missing, fall back to an already built bundle
+  PREBUILT_DIST="${APP_DIR}/CosmoView/dist/public"
+  if [ -d "${PREBUILT_DIST}" ]; then
+    echo "Frontend source directory not found. Using existing assets at ${PREBUILT_DIST}."
+    FRONTEND_BUILD_DIR="${PREBUILT_DIST}"
+  else
+    echo "Error: Frontend directory ${FRONTEND_PATH} not found and no prebuilt assets present." >&2
+    echo "Ensure the CosmoView frontend is built before deployment or set FRONTEND_DIR." >&2
+    exit 1
+  fi
+fi
 
 # Apply capability for port binding if needed (for systemd < 229)
 # Modern systemd (>= 229) uses AmbientCapabilities in the service file

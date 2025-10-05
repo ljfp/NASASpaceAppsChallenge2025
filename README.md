@@ -87,8 +87,8 @@ pipeline performs the following steps:
 4. Creates a dedicated service user (`nasaapp`) if it doesn't exist.
 5. Sets proper ownership and permissions for the application directory.
 6. Installs Python dependencies in a virtual environment owned by the service user.
-7. Installs CosmoView dependencies on the EC2 host and rebuilds the Vite bundle to guarantee fresh
-   assets.
+7. Installs CosmoView dependencies on the EC2 host and rebuilds the Vite bundle (or reuses the
+   synced `CosmoView/dist/public` assets if the source directory is absent).
 8. Applies necessary capabilities to bind to port 80 (if running on a privileged port).
 9. Restarts the systemd service or launches Uvicorn as a background process.
 
