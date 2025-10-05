@@ -184,9 +184,27 @@ button:disabled {
   gap: 0.4rem;
 }
 
+.sample-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* dos columnas iguales */
+  gap: 0.6rem;
+}
+
 .sample-buttons button {
+  width: 100%;
+  height: 44px;
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 0.45rem 0.70rem;
+  border-radius: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(59, 130, 246, 0.14);
-  border-color: rgba(59, 130, 246, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .sample-buttons button:hover {
