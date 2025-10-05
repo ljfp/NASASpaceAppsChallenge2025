@@ -28,7 +28,7 @@ body {
 
 .hud {
   position: fixed;
-  top: var(--layout-top-offset);
+  top: calc(var(--layout-top-offset) - 1rem);
   left: 1.25rem;
   width: min(380px, calc(100vw - 2.5rem));
   max-height: calc(100vh - 2.5rem);
@@ -331,3 +331,4 @@ button:disabled {
 .hidden {
   display: none !important;
 }
+
