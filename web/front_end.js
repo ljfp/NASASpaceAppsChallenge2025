@@ -11,9 +11,30 @@ const fileInput = document.getElementById('fits-file');
 const urlInput = document.getElementById('fits-url');
 const loadUrlButton = document.getElementById('load-url');
 const sampleButtons = Array.from(document.querySelectorAll('[data-fits-url]'));
+const addMarkerButton = document.getElementById('add-marker');
+const removeMarkerButton = document.getElementById('remove-marker');
+const markerModal = document.getElementById('marker-modal');
+const markerForm = markerModal ? markerModal.querySelector('form') : null;
+const markerCancelButton = markerModal ? markerModal.querySelector('[data-action="cancel"]') : null;
+const markerTitleInput = document.getElementById('marker-title');
+const markerDescriptionInput = document.getElementById('marker-description');
+const markerColorInput = document.getElementById('marker-color');
 
 let aladinInstance = null;
 let currentRequestId = 0;
+let markerLayer = null;
+let markerMode = 'idle';
+let pendingMarkerPosition = null;
+let storedStatusText = null;
+const placedMarkers = [];
+let lastStatusSnapshot = { label: null, fov: null };
+
+if (addMarkerButton) {
+	addMarkerButton.disabled = true;
+}
+if (removeMarkerButton) {
+	removeMarkerButton.disabled = true;
+}
 
 const DEFAULT_SAMPLE = sampleButtons.length
 	? {
@@ -22,6 +43,33 @@ const DEFAULT_SAMPLE = sampleButtons.length
 			colormap: sampleButtons[0].dataset.colormap
 	  }
 	: null;
+
+function createMarkerIcon(color) {
+	const size = 22;
+	const canvas = document.createElement('canvas');
+	canvas.width = size;
+	canvas.height = size;
+	const context = canvas.getContext('2d');
+	if (!context) {
+		return canvas;
+	}
+	const normalizedColor = typeof color === 'string' && color.trim() ? color : '#60A5FA';
+	context.clearRect(0, 0, size, size);
+	context.beginPath();
+	context.arc(size / 2, size / 2, (size / 2) - 2, 0, Math.PI * 2);
+	context.closePath();
+	context.fillStyle = normalizedColor;
+	context.fill();
+	context.lineWidth = 2;
+	context.strokeStyle = '#0f172a';
+	context.stroke();
+	context.beginPath();
+	context.arc(size / 2, size / 2, 3, 0, Math.PI * 2);
+	context.closePath();
+	context.fillStyle = '#0f172a';
+	context.fill();
+	return canvas;
+}
 
 function showError(message) {
 	errorBox.textContent = message;
@@ -34,6 +82,10 @@ function clearError() {
 }
 
 function updateStatus(label, fov) {
+	lastStatusSnapshot = {
+		label: label ?? null,
+		fov: Number.isFinite(fov) ? fov : null
+	};
 	const parts = [];
 	if (label) {
 		parts.push(`Source: ${label}`);
@@ -43,6 +95,22 @@ function updateStatus(label, fov) {
 		parts.push(`FoV ≈ ${span.toFixed(2)}°`);
 	}
 	statusMessage.textContent = parts.join(' · ') || 'Ready to load a FITS image.';
+}
+
+function setTemporaryStatus(message) {
+	if (storedStatusText === null) {
+		storedStatusText = statusMessage.textContent;
+	}
+	statusMessage.textContent = message;
+}
+
+function restoreStatus() {
+	if (storedStatusText !== null) {
+		statusMessage.textContent = storedStatusText;
+		storedStatusText = null;
+	} else {
+		updateStatus(lastStatusSnapshot.label, lastStatusSnapshot.fov);
+	}
 }
 
 function focusOnImage(ra, dec, fov) {
@@ -79,6 +147,175 @@ function deriveLabel(source) {
 		return `Local file: ${source.name}`;
 	}
 	return 'Custom FITS';
+}
+
+function ensureMarkerLayer() {
+	if (!aladinInstance || markerLayer) {
+		return markerLayer;
+	}
+	markerLayer = A.catalog({
+		name: 'Annotations',
+		shape: 'circle',
+		sourceSize: 18,
+		color: '#60A5FA'
+	});
+	aladinInstance.addCatalog(markerLayer);
+	return markerLayer;
+}
+
+function updateRemoveMarkerState() {
+	if (removeMarkerButton) {
+		removeMarkerButton.disabled = placedMarkers.length === 0;
+	}
+}
+
+function exitMarkerFlow() {
+	markerMode = 'idle';
+	if (addMarkerButton) {
+		addMarkerButton.classList.remove('marker-control--active');
+		addMarkerButton.disabled = !aladinInstance;
+	}
+	pendingMarkerPosition = null;
+	restoreStatus();
+}
+
+function openMarkerModal() {
+	if (!markerModal || !markerForm) {
+		return;
+	}
+	markerModal.classList.remove('hidden');
+	if (markerTitleInput) {
+		markerTitleInput.focus();
+	}
+	document.addEventListener('keydown', handleModalKeydown);
+}
+
+function resetMarkerForm() {
+	if (!markerForm) {
+		return;
+	}
+	markerForm.reset();
+	if (markerColorInput) {
+		markerColorInput.value = '#60A5FA';
+	}
+}
+
+function closeMarkerModal() {
+	if (!markerModal) {
+		return;
+	}
+	markerModal.classList.add('hidden');
+	document.removeEventListener('keydown', handleModalKeydown);
+	resetMarkerForm();
+	exitMarkerFlow();
+}
+
+function handleModalKeydown(event) {
+	if (event.key === 'Escape') {
+		event.preventDefault();
+		closeMarkerModal();
+	}
+}
+
+function extractCoordinates(event) {
+	const candidates = [event, event?.data];
+	for (const candidate of candidates) {
+		if (!candidate) {
+			continue;
+		}
+		const ra = Number(candidate.ra ?? candidate.lon ?? candidate.lng ?? candidate.alpha);
+		const dec = Number(candidate.dec ?? candidate.lat ?? candidate.beta);
+		if (Number.isFinite(ra) && Number.isFinite(dec)) {
+			return { ra, dec };
+		}
+	}
+	return null;
+}
+
+function handleSkyClick(event) {
+	if (markerMode !== 'armed') {
+		return;
+	}
+	const coordinates = extractCoordinates(event);
+	if (!coordinates) {
+		return;
+	}
+	markerMode = 'pending';
+	pendingMarkerPosition = coordinates;
+	if (addMarkerButton) {
+		addMarkerButton.classList.remove('marker-control--active');
+		addMarkerButton.disabled = true;
+	}
+	openMarkerModal();
+}
+
+function startMarkerPlacement() {
+	if (!aladinInstance) {
+		return;
+	}
+	ensureMarkerLayer();
+	markerMode = 'armed';
+	if (addMarkerButton) {
+		addMarkerButton.classList.add('marker-control--active');
+		addMarkerButton.disabled = false;
+	}
+	setTemporaryStatus('Click on the sky map to choose where the new marker should be placed.');
+}
+
+function handleMarkerSubmission(event) {
+	event.preventDefault();
+	if (!pendingMarkerPosition || !markerLayer) {
+		closeMarkerModal();
+		return;
+	}
+	const title = markerTitleInput?.value.trim() || `Marker ${placedMarkers.length + 1}`;
+	const description = markerDescriptionInput?.value.trim() || '';
+	const color = markerColorInput?.value || '#60A5FA';
+	const markerOptions = {
+		popupTitle: title,
+		popupDesc: description
+	};
+	try {
+		const marker = A.marker(pendingMarkerPosition.ra, pendingMarkerPosition.dec, markerOptions);
+		marker.useMarkerDefaultIcon = false;
+		if (typeof marker.setImage === 'function') {
+			marker.setImage(createMarkerIcon(color));
+		}
+		marker.color = color;
+		markerLayer.addSources([marker]);
+		placedMarkers.push(marker);
+		updateRemoveMarkerState();
+	} catch (error) {
+		console.error('Unable to add marker', error);
+		showError('We could not create the marker. Please try again.');
+	}
+	closeMarkerModal();
+}
+
+function removeLatestMarker() {
+	if (!markerLayer || placedMarkers.length === 0) {
+		return;
+	}
+	const marker = placedMarkers.pop();
+	try {
+		if (typeof markerLayer.remove === 'function') {
+			markerLayer.remove(marker);
+		} else if (typeof markerLayer.removeSources === 'function') {
+			markerLayer.removeSources([marker]);
+		} else if (typeof markerLayer.removeSource === 'function') {
+			markerLayer.removeSource(marker);
+		} else if (typeof markerLayer.removeAll === 'function') {
+			markerLayer.removeAll();
+			placedMarkers.length = 0;
+		}
+	} catch (error) {
+		console.warn('Unable to remove marker individually, clearing all markers', error);
+		if (typeof markerLayer.removeAll === 'function') {
+			markerLayer.removeAll();
+			placedMarkers.length = 0;
+		}
+	}
+	updateRemoveMarkerState();
 }
 
 function loadFits(source, options = {}) {
@@ -198,10 +435,14 @@ async function initialiseViewer() {
 				target: 'M 31'
 			});
 
-			var marker1 = A.marker(0, 0, {popupTitle: "Test", popupDesc: "TEST"});
-			var markerLayer = A.catalog();
-			aladinInstance.addCatalog(markerLayer);
-			markerLayer.addSources([marker1]);
+			ensureMarkerLayer();
+			if (addMarkerButton) {
+				addMarkerButton.disabled = false;
+			}
+			updateRemoveMarkerState();
+			if (typeof aladinInstance.on === 'function') {
+				aladinInstance.on('click', handleSkyClick);
+			}
 		});
 
 		initialiseSampleButtons();
@@ -229,9 +470,35 @@ urlInput.addEventListener('keydown', (event) => {
 	}
 });
 
-openComparisonButton = document.getElementById("open-comparison");
-openComparisonButton.addEventListener('click', () => {
-	console.log(aladinInstance.getBaseImageLayer());
-});
+if (addMarkerButton) {
+	addMarkerButton.addEventListener('click', () => {
+		if (!aladinInstance) {
+			showError('The FITS viewer is still initialising. Please wait a moment and try again.');
+			return;
+		}
+		if (markerMode === 'armed') {
+			exitMarkerFlow();
+			return;
+		}
+		startMarkerPlacement();
+	});
+}
+
+if (markerCancelButton) {
+	markerCancelButton.addEventListener('click', (event) => {
+		event.preventDefault();
+		closeMarkerModal();
+	});
+}
+
+if (markerForm) {
+	markerForm.addEventListener('submit', handleMarkerSubmission);
+}
+
+if (removeMarkerButton) {
+	removeMarkerButton.addEventListener('click', () => {
+		removeLatestMarker();
+	});
+}
 
 initialiseViewer();
