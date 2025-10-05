@@ -82,18 +82,20 @@ pipeline performs the following steps:
 
 1. Checks out the latest code.
 2. Installs Node.js dependencies for the CosmoView frontend and builds the production bundle.
-3. Copies the repository to `/opt/nasa-sky-explorer` on your EC2 instance via `rsync` (skipping
-   local build artefacts such as `node_modules/`).
+3. Copies the repository to `/opt/nasa-sky-explorer` on your EC2 instance via `rsync`, including
+   the built `CosmoView/dist/public` assets (but excluding local build artefacts like
+   `node_modules/`).
 4. Creates a dedicated service user (`nasaapp`) if it doesn't exist.
 5. Sets proper ownership and permissions for the application directory.
 6. Installs Python dependencies in a virtual environment owned by the service user.
-7. Installs CosmoView dependencies on the EC2 host and rebuilds the Vite bundle (or reuses the
-   synced `CosmoView/dist/public` assets if the source directory is absent).
+7. Validates that the frontend assets were synced successfully (no rebuild on the server needed if
+   Node.js isn't available).
 8. Applies necessary capabilities to bind to port 80 (if running on a privileged port).
 9. Restarts the systemd service or launches Uvicorn as a background process.
 
-> **Prerequisite:** Ensure Node.js (v20 or newer recommended) is available on the EC2 instance so
-> the deployment script can run `npm install` and `npm run build` inside `CosmoView/`.
+> **Note:** Node.js is **not required** on the EC2 instance since the frontend is built by the
+> GitHub Actions runner and synced as a prebuilt bundle. You only need Node.js on the server if you
+> plan to rebuild the frontend manually after deployment.
 
 ### Required GitHub secrets
 

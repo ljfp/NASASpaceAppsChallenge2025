@@ -68,7 +68,9 @@ jobs:
             --exclude ".github/" \
             --exclude ".venv/" \
             --exclude "CosmoView/node_modules/" \
+            --exclude "CosmoView/.local/" \
             --exclude "logs/" \
+            --include "CosmoView/dist/***" \
             ./ "${{ env.EC2_USER }}@${{ env.EC2_HOST }}:${TEMP_DIR}/"
           
           # Move from temp to final location with sudo
