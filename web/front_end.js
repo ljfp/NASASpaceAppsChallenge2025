@@ -470,11 +470,6 @@ urlInput.addEventListener('keydown', (event) => {
 	}
 });
 
-openComparisonButton = document.getElementById("open-comparison");
-openComparisonButton.addEventListener('click', () => {
-	console.log(aladinInstance.getBaseImageLayer());
-});
-
 if (addMarkerButton) {
 	addMarkerButton.addEventListener('click', () => {
 		if (!aladinInstance) {
